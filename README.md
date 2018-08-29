@@ -12,7 +12,7 @@ It is particularly aimed towards two distinct user profiles:
 2. Developers that develop new protein design tools/protocols/approaches and wish to benchmark their innovations with previously existing methods.
 
 Despite its name, the library **does not require a local installation of ROSETTA**, files can be imported from whatever cluster service the user has access to. That said, some functions can or need to exploit **ROSETTA**. Those functions are few and their requirements are
-clearly highlighted on their [documentation](http://jaumebonet.cat/RosettaSilentToolbox).
+clearly highlighted on their [documentation](https://lpdi-epfl.github.io/rstoolbox/).
 
 Start using the `rstoolbox` is as easy as installing it via pip:
 
@@ -20,4 +20,6 @@ Start using the `rstoolbox` is as easy as installing it via pip:
   pip install rstoolbox
 ```
 
-A complete [documentation](http://jaumebonet.cat/RosettaSilentToolbox) with detailed explanation for each function is available.
+A complete [documentation](https://lpdi-epfl.github.io/rstoolbox/) with detailed explanation for each function is available.
+
+The development repository [can be found here](https://github.com/jaumebonet/RosettaSilentToolbox)
