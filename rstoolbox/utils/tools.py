@@ -7,11 +7,13 @@
     Bruno Correia <bruno.correia@epfl.ch>
 
 .. func:: format_Ipython
+.. func:: use_qgrid
 .. func:: add_column
 .. func:: split_values
 .. func:: make_rosetta_app_path
 .. func:: execute_process
 .. func:: report
+.. func:: concat_fragments
 """
 # Standard Libraries
 import os
@@ -28,8 +30,8 @@ from six import string_types
 # This Library
 
 
-__all__ = ['format_Ipython', 'add_column', 'split_values', 'make_rosetta_app_path',
-           'execute_process', 'report']
+__all__ = ['format_Ipython', 'use_qgrid', 'add_column', 'split_values', 'make_rosetta_app_path',
+           'execute_process', 'report', 'concat_fragments']
 
 
 def format_Ipython():
@@ -41,6 +43,9 @@ def format_Ipython():
     .. note::
         In order for this function to work, it is important that is the last
         one in the Jupyter cell to be called.
+
+    :raises:
+        :ImportError: If [Ipython library](https://ipython.org/) is not present.
     """
     pd.set_option("display.max_columns", None)
     pd.set_option("display.max_rows", None)
@@ -48,11 +53,60 @@ def format_Ipython():
     pd.set_option("display.max_colwidth", -1)
     from IPython.core.display import HTML
     CSS = textwrap.dedent("""
-        table.dataframe {
-            font-family: monospace;
+        table.dataframe, div.slick-cell {
+            font-family: monospace  !important;
+        }
+        div.q-grid-toolbar > button:nth-of-type(1) {
+            visibility: hidden;
+        }
+        div.q-grid-toolbar > button:nth-of-type(2) {
+            visibility: hidden;
         }
     """)
     return HTML('<style>{}</style>'.format(CSS))
+
+
+def use_qgrid( df, **kwargs ):
+    """Create a ``QgridWidget`` object from the
+    [qgrid library](https://qgrid.readthedocs.io/en/latest/) in
+    **Jupyter Notebooks**.
+
+    This allows the creation of a interactive table in a cell with a whole
+    lot of functionalities (see [qgrid documentation](https://qgrid.readthedocs.io/en/latest/))
+
+    A part from the :class:`~pandas.DataFrame`, one can provide any named parameter that can
+    be applied to [qgrid.show_grid](https://qgrid.readthedocs.io/en/latest/#qgrid.show_grid).
+    The only difference is that if there are more than 4 columns, the key ``forceFitColumns``
+    from the attribute ``grid_options`` is forced into :data:`False`.
+
+    The actual :class:`~pandas.DataFrame` can be retrieved back with::
+
+        qwdf = rstoolbox.utils.use_qgrid(df)
+        qdf = qwdf.get_changed_df()
+        # OR
+        qdf = qwdf.get_selected_df()
+
+    See more in the documentation for
+    [get_changed_df](https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget.get_changed_df)
+    or [get_selected_df](https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget.get_selected_df).
+
+    Best used together with :func:`.format_Ipython`.
+
+    :param df: Data container.
+    :type df: :class:`~pandas.DataFrame`
+
+    :return: [QgridWidget](https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget)
+
+    :raises:
+        :ImportError: If [qgrid library](https://qgrid.readthedocs.io/en/latest/)
+            is not present.
+    """
+    import qgrid
+
+    go = kwargs.pop('grid_options', {})
+    if df.shape[1] > 4:
+        go['forceFitColumns'] = False
+    return qgrid.show_grid(df, grid_options=go, **kwargs)
 
 
 def add_column( df, name, value ):
@@ -66,6 +120,7 @@ def add_column( df, name, value ):
     :return: :class:`~pandas.DataFrame` - The data container with the new column
     """
     data = pd.Series([value] * df.shape[0])
+    data.index = df.index
     return df.assign(_placeholder=data).rename(columns={"_placeholder": name})
 
 
@@ -170,7 +225,7 @@ def make_rosetta_app_path( application ):
     return exe
 
 
-def execute_process( command ):
+def execute_process( command ):  # pragma: no cover
     """Execute the provided command.
 
     :param command: Command to be executed.
@@ -184,7 +239,11 @@ def execute_process( command ):
         command = shlex.split(command)
     try:
         return subprocess.call( command )
-    except OSError:
+    except OSError as e:
+        print('OS', e)
+        return 1
+    except subprocess.CalledProcessError as e:
+        print('CPE', e)
         return 1
 
 
@@ -218,7 +277,7 @@ def report( df ):
             return ''
         mutations = row.get_mutations(seqID).split(',')
         for i, m in enumerate(mutations):
-            g = re.match('^(\w+)(\d+)(\w+)$', m)
+            g = re.match(r'^(\w+)(\d+)(\w+)$', m)
             if isinstance(shift, int):
                 position = int(g.group(2)) + (shift - 1)
             else:
@@ -248,3 +307,31 @@ def report( df ):
         dcop[col] = dcop.apply(lambda row: translate_mutants(row, c, shift), axis=1)
 
     return dcop
+
+
+def concat_fragments( fragment_list ):
+    """Combine multiple :class:`.FragmentFrame`.
+
+    .. note::
+        Make sure to give an **ordered** ``fragment_list``, as the individual
+        :class:`.FragmentFrame` are processed one by one and the frame is
+        renumbered.
+
+    :param fragment_list: Command to be executed.
+    :type fragment_list: Union(:class:`.FragmentFrame`, :func:`list`)
+
+    :return: :class:`.FragmentFrame` - combined and renumbered.
+    """
+    fragment_list_renum = []
+    for i, e in enumerate(fragment_list):
+        shiftset = e.iloc[0]['frame']
+        if i == 0:
+            newE = e.assign(renum_frame=e['frame'] - shiftset + 1)
+        else:
+            newE = e.assign(renum_frame=e['frame'] - shiftset + 1 +
+                            fragment_list_renum[i - 1]['renum_frame'].max())
+        fragment_list_renum.append(newE)
+    df = pd.concat(fragment_list_renum, ignore_index=True, sort=False)
+    df = df[['pdb', 'renum_frame', 'neighbors', 'position', 'size', 'aa',
+             'sse', 'phi', 'psi', 'omega']].rename(columns={'renum_frame': 'frame'})
+    return df

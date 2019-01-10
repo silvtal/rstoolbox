@@ -9,6 +9,7 @@
 .. func:: add_left_title
 .. func:: add_right_title
 .. func:: add_top_title
+.. func:: edit_legend_text
 .. func:: add_white_to_cmap
 .. func:: color_variant
 .. func:: discrete_cmap_from_colors
@@ -19,13 +20,14 @@
 import numpy as np
 import seaborn as sns
 from matplotlib import colors
+from matplotlib.legend import Legend
 from matplotlib.cm import get_cmap
 import six
 
 # This Library
 
 
-__all__ = ['add_right_title', 'add_top_title', 'add_left_title',
+__all__ = ['add_right_title', 'add_top_title', 'add_left_title', 'edit_legend_text',
            'add_white_to_cmap', 'color_variant', 'discrete_cmap_from_colors']
 
 
@@ -35,9 +37,11 @@ def add_left_title(ax, title, **kwargs ):
     All :func:`~matplotlib.Axes.annotate` parameters are
     accessible.
 
-    :param axis: Target plot axis.
-    :type axis: :class:`~matplotlib.Axes`
+    :param ax: Target plot axis.
+    :type ax: :class:`~matplotlib.Axes`
     :param str title: Title text to add.
+
+    :return: :class:`~matplotlib.text.Annotation`
     """
 
     if title is None:
@@ -50,7 +54,7 @@ def add_left_title(ax, title, **kwargs ):
     kwargs.setdefault("ha", 'right')
     kwargs.setdefault("va", 'center')
 
-    ax.annotate(title, **kwargs)
+    return ax.annotate(title, **kwargs)
 
 
 def add_right_title(ax, title, **kwargs ):
@@ -59,9 +63,11 @@ def add_right_title(ax, title, **kwargs ):
     All :func:`~matplotlib.Axes.annotate` parameters are
     accessible.
 
-    :param axis: Target plot axis.
-    :type axis: :class:`~matplotlib.Axes`
+    :param ax: Target plot axis.
+    :type ax: :class:`~matplotlib.Axes`
     :param str title: Title text to add.
+
+    :return: :class:`~matplotlib.text.Annotation`
     """
 
     if title is None:
@@ -73,7 +79,7 @@ def add_right_title(ax, title, **kwargs ):
     kwargs.setdefault("ha", 'left')
     kwargs.setdefault("va", 'center')
 
-    ax.annotate(title, **kwargs)
+    return ax.annotate(title, **kwargs)
 
 
 def add_top_title( ax, title, **kwargs ):
@@ -82,9 +88,11 @@ def add_top_title( ax, title, **kwargs ):
     All :func:`~matplotlib.Axes.annotate` parameters are
     accessible.
 
-    :param axis: Target plot axis.
-    :type axis: :py:class:`~matplotlib.Axes`
+    :param ax: Target plot axis.
+    :type ax: :py:class:`~matplotlib.Axes`
     :param str title: Title text to add.
+
+    :return: :class:`~matplotlib.text.Annotation`
     """
     if title is None:
         return
@@ -96,7 +104,35 @@ def add_top_title( ax, title, **kwargs ):
     kwargs.setdefault("ha", 'center')
     kwargs.setdefault("va", 'baseline')
 
-    ax.annotate(title, **kwargs)
+    return ax.annotate(title, **kwargs)
+
+
+def edit_legend_text( ax, labels, title=None ):
+    """Change the labels and title of a legend.
+
+    :param ax: Target plot axis.
+    :type ax: :py:class:`~matplotlib.Axes`
+    :param labels: List of new labels to add (in the required order)
+    :type labels: :func:`list` of :class:`str`
+    :type str title: If provided, adds/alters the title of the legend.
+
+    :raises:
+        :IndexError: If the number of new labels do not match the current
+            number of labels.
+    """
+    leg = ax.get_legend()
+    if not isinstance(leg, Legend):
+        return None
+
+    if title is not None:
+        leg.set_title(title)
+
+    if len(leg.texts) != len(labels):
+        raise IndexError('The number of provided labels has to match '
+                         'the number of labels in the legend')
+
+    for t, l in zip(leg.texts, labels):
+        t.set_text(l)
 
 
 def add_white_to_cmap( color=None, cmap=None, n_colors=10 ):
