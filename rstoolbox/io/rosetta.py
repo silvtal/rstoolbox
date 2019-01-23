@@ -220,9 +220,17 @@ def open_rosetta_file( filename, multi=False, check_symmetry=True ):
     files = _gather_file_list( filename, multi )
     for file_count, f in enumerate( files ):
         if check_symmetry:
-            cmd = "zgrep SYMMETRY_INFO {}" if f.endswith(".gz") else "grep SYMMETRY_INFO {}"
-            process = execute_process(cmd.format(f))
-            symm = (process == 0)
+            counter = 0
+            fd = gzip.open( f ) if f.endswith(".gz") else open( f )
+            for line in fd:
+                line = line.decode('utf8') if f.endswith(".gz") else line
+                if line.startswith('SYMMETRY_INFO'):
+                    symm = True
+                if line.startswith('SCORE') and not line.strip().split()[-1] == "description":
+                    counter += 1
+                if counter == 2:
+                    break
+            fd.close()
         fd = gzip.open( f ) if f.endswith(".gz") else open( f )
         for line in fd:
             line = line.decode('utf8') if f.endswith(".gz") else line
@@ -293,7 +301,7 @@ def parse_rosetta_file( filename, description=None, multi=False ):
 
     for line, is_header, _, symm in open_rosetta_file( filename, multi ):
         if is_header:
-            header = line.strip().split()[1:]
+            header = manager.check_graft_columns(line.strip().split()[1:])
             continue
 
         if line.startswith("SCORE"):
@@ -303,7 +311,7 @@ def parse_rosetta_file( filename, description=None, multi=False ):
             _fix_unloaded( data )
 
             # General scores
-            for cv, value in enumerate( line.strip().split()[1:-1] ):
+            for cv, value in enumerate( manager.manage_missing(header[:-1], line.strip().split()[1:-1])):
                 hcv = header[cv]
                 if manager.wanted_per_residue_score( hcv ):
                     hcvn = re.sub(r'\d+$', "", hcv)
