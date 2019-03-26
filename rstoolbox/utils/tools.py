@@ -19,7 +19,7 @@
 import os
 import copy
 import textwrap
-import subprocess
+import subprocess  # nosec
 import shlex
 import re
 
@@ -31,7 +31,7 @@ from six import string_types
 
 
 __all__ = ['format_Ipython', 'use_qgrid', 'add_column', 'split_values', 'make_rosetta_app_path',
-           'execute_process', 'report', 'concat_fragments']
+           'execute_process', 'report', 'concat_fragments', 'split_dataframe_rows']
 
 
 def format_Ipython():
@@ -68,14 +68,14 @@ def format_Ipython():
 
 def use_qgrid( df, **kwargs ):
     """Create a ``QgridWidget`` object from the
-    [qgrid library](https://qgrid.readthedocs.io/en/latest/) in
+    `qgrid library <https://qgrid.readthedocs.io/en/latest/>`_ in
     **Jupyter Notebooks**.
 
     This allows the creation of a interactive table in a cell with a whole
-    lot of functionalities (see [qgrid documentation](https://qgrid.readthedocs.io/en/latest/))
+    lot of functionalities (see `qgrid documentation <https://qgrid.readthedocs.io/en/latest/>`_)
 
     A part from the :class:`~pandas.DataFrame`, one can provide any named parameter that can
-    be applied to [qgrid.show_grid](https://qgrid.readthedocs.io/en/latest/#qgrid.show_grid).
+    be applied to `qgrid.show_grid <https://qgrid.readthedocs.io/en/latest/#qgrid.show_grid>`_.
     The only difference is that if there are more than 4 columns, the key ``forceFitColumns``
     from the attribute ``grid_options`` is forced into :data:`False`.
 
@@ -87,21 +87,24 @@ def use_qgrid( df, **kwargs ):
         qdf = qwdf.get_selected_df()
 
     See more in the documentation for
-    [get_changed_df](https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget.get_changed_df)
-    or [get_selected_df](https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget.get_selected_df).
+    `get_changed_df <https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget.get_changed_df>`_
+    or `get_selected_df <https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget.get_selected_df>`_.
 
     Best used together with :func:`.format_Ipython`.
 
     :param df: Data container.
     :type df: :class:`~pandas.DataFrame`
 
-    :return: [QgridWidget](https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget)
+    :return: `QgridWidget <https://qgrid.readthedocs.io/en/latest/#qgrid.QgridWidget>`_
 
     :raises:
-        :ImportError: If [qgrid library](https://qgrid.readthedocs.io/en/latest/)
+        :ImportError: If `qgrid library <https://qgrid.readthedocs.io/en/latest/>`_
             is not present.
     """
-    import qgrid
+    try:
+        import qgrid
+    except ImportError:
+        raise ImportError('qgrid (not mandatory on rstoolbox install) is necessary to execute this function.')
 
     go = kwargs.pop('grid_options', {})
     if df.shape[1] > 4:
@@ -201,6 +204,49 @@ def split_values( df, keys ):
     return pd.concat(dataframes)
 
 
+def split_dataframe_rows(df, column_selectors, row_delimiter=None):
+    """Given a dataframe in which certain columns are lists, it splits these lists
+    making new rows in the :class:`~pandas.DataFrame` out of itself.
+
+    When multiple columns have lists of similar lengths, it assumes that same index
+    positions on the list go in the same new row.
+
+    :param df: Input data.
+    :type df: :class:`~pandas.DataFrame`
+    :param column_selectors: List of columns containg same-sized lists.
+    :type column_selectors: :func:`list` of :class:`str`
+    :param str row_delimiter: If provided, instead of list, it assumes data are strings
+        and uses the delimiter to make those strings into lists.
+    """
+    # https://gist.github.com/jlln/338b4b0b55bd6984f883#gistcomment-2698588
+    # we need to keep track of the ordering of the columns
+    def _split_list_to_rows(row, row_accumulator, column_selector, row_delimiter):
+        split_rows = {}
+        max_split = 0
+        for column_selector in column_selectors:
+            if row_delimiter is not None:
+                split_row = row[column_selector].split(row_delimiter)
+            else:
+                split_row = copy.deepcopy(row[column_selector])
+            split_rows[column_selector] = split_row
+            if len(split_row) > max_split:
+                max_split = len(split_row)
+
+        for _ in range(max_split):
+            new_row = row.to_dict()
+            for column_selector in column_selectors:
+                try:
+                    new_row[column_selector] = split_rows[column_selector].pop(0)
+                except IndexError:
+                    new_row[column_selector] = ''
+            row_accumulator.append(new_row)
+
+    new_rows = []
+    df.apply(_split_list_to_rows, axis=1, args=(new_rows, column_selectors, row_delimiter))
+    new_df = pd.DataFrame(new_rows, columns=df.columns)
+    return new_df
+
+
 def make_rosetta_app_path( application ):
     """Provided the expected Rosetta application, add path and suffix.
 
@@ -238,7 +284,7 @@ def execute_process( command ):  # pragma: no cover
     if isinstance(command, string_types):
         command = shlex.split(command)
     try:
-        return subprocess.call( command )
+        return subprocess.call( command )  # nosec
     except OSError as e:
         print('OS', e)
         return 1
@@ -269,7 +315,7 @@ def report( df ):
             if isinstance(shift, int):
                 mutations[i] += (shift - 1)
             else:
-                mutations[i] = shift[x - 1]
+                mutations[i] = shift[i - 1]
         return ','.join([str(x) for x in mutations])
 
     def translate_mutants(row, seqID, shift):
@@ -328,10 +374,9 @@ def concat_fragments( fragment_list ):
         if i == 0:
             newE = e.assign(renum_frame=e['frame'] - shiftset + 1)
         else:
-            newE = e.assign(renum_frame=e['frame'] - shiftset + 1 +
-                            fragment_list_renum[i - 1]['renum_frame'].max())
+            newE = e.assign(renum_frame=e['frame'] - shiftset + 1 + fragment_list_renum[i - 1]['renum_frame'].max())
         fragment_list_renum.append(newE)
     df = pd.concat(fragment_list_renum, ignore_index=True, sort=False)
-    df = df[['pdb', 'renum_frame', 'neighbors', 'position', 'size', 'aa',
+    df = df[['pdb', 'renum_frame', 'neighbors', 'neighbor', 'position', 'size', 'aa',
              'sse', 'phi', 'psi', 'omega']].rename(columns={'renum_frame': 'frame'})
     return df

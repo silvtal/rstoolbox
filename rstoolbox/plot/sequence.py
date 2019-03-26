@@ -172,7 +172,7 @@ def sequence_frequency_plot( df, seqID, ax, aminosY=True, clean_unused=-1,
     if isinstance(data, DesignFrame):
         data = data.sequence_frequencies(seqID)
     if isinstance(data, SequenceFrame):
-        order = sorted(data.columns.values.tolist(), key=lambda x: order.index(x))
+        order = sorted(data.columns.values.tolist(), key=lambda x: order.index(x))  # nosec
         if not data.is_transposed():
             data = data.transpose().reindex(order)
         else:
@@ -187,7 +187,7 @@ def sequence_frequency_plot( df, seqID, ax, aminosY=True, clean_unused=-1,
     if clean_unused >= 0:
         data.delete_empty(clean_unused)
         data = data.clean()
-        order = sorted(data.index.values.tolist(), key=lambda x: order.index(x))
+        order = sorted(data.index.values.tolist(), key=lambda x: order.index(x))  # nosec
         data = data.reindex(order)
 
     # heatmap parameters and others
@@ -284,7 +284,7 @@ def plot_alignment( df, seqID, ax, line_break=None, matrix=None ):
 
     def split(a, n):
         k, m = divmod(len(a), n)
-        return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in xrange(n))
+        return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
 
     if not isinstance(df, pd.DataFrame):
         raise ValueError("Input data must be in a DataFrame or DesignFrame")
