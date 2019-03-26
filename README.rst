@@ -42,11 +42,11 @@ It is particularly aimed towards two distinct user profiles:
 See a working example notebook at:
 
 .. image:: https://mybinder.org/badge_logo.svg
-    :target: https://mybinder.org/v2/gh/jaumebonet/RosettaSilentToolbox/fd7b663?filepath=notebook
+    :target: https://mybinder.org/v2/gh/lpdi-epfl/rstoolbox/51ccd51?filepath=notebook
     :alt: Binder
 
 Despite its name, the library **does not require a local installation of ROSETTA**, files can be imported from whatever cluster service the user has access to. That said, some functions can or need to exploit **ROSETTA**. Those functions are few and their requirements are
-clearly highlighted on their `documentation <http://jaumebonet.cat/RosettaSilentToolbox>`_.
+clearly highlighted on their `documentation <http://lpdi-epfl.github.io/RosettaSilentToolbox>`_.
 
 Start using the ``rstoolbox`` is as easy as installing it via pip:
 
