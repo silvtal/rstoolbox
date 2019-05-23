@@ -19,6 +19,7 @@
 import copy
 import collections
 import re
+import operator
 
 # External Libraries
 import pandas as pd
@@ -30,7 +31,7 @@ from .SimilarityMatrix import SimilarityMatrix as SM
 __all__ = ['sequential_frequencies', 'sequence_similarity',
            'positional_sequence_similarity', 'binary_similarity',
            'binary_overlap', 'selector_percentage', 'label_percentage',
-           'positional_enrichment']
+           'label_sequence', 'positional_enrichment']
 
 
 def _get_sequential_table( seqType ):
@@ -621,9 +622,85 @@ def label_percentage( df, seqID, label ):
                        axis=1, result_type='expand')
         return df2
     elif isinstance(df, DesignSeries):
-        seq1 = list(df.get_sequence(seqID))
-        seq2 = list(df.get_sequence(seqID, df.get_label(label, seqID)))
-        return df.append(pd.Series([float(len(seq2)) / len(seq1)], [colname]))
+        try:
+            seq1 = list(df.get_sequence(seqID))
+            seq2 = list(df.get_sequence(seqID, df.get_label(label, seqID)))
+            return df.append(pd.Series([float(len(seq2)) / len(seq1)], [colname]))
+        except KeyError:
+            return df.append(pd.Series([0], [colname]))
+    else:
+        raise NotImplementedError
+
+
+def label_sequence( df, seqID, label, complete=False ):
+    """Gets the sequence of a ``label``.
+
+    Depends on label data for the ``seqID``.
+
+    Adds a new column to the data container:
+
+    ===========================  ====================================================
+    New Column                   Data Content
+    ===========================  ====================================================
+    **<label>_<seqID>_seq**      Trimmed sequence by the ``label``.
+    ===========================  ====================================================
+
+    :param df: |df_param|.
+    :type df: Union[:class:`.DesignFrame`, :class:`.DesignSeries`]
+    :param str seqID: |seqID_param|.
+    :param str label: Label identifier.
+    :param bool complete: Only applies when input is a :class:`.DesignFrame`.
+        Generates a gapped alignment considering the maches of ``label`` as those
+        of the highest matching decoy.
+
+    :return: Union[:class:`.DesignFrame`, :class:`.DesignSeries`]
+
+    :raises:
+        :NotImplementedError: if the data passed is not in Union[:class:`.DesignFrame`,
+            :class:`.DesignSeries`].
+        :KeyError: |lblID_error|.
+
+    .. rubric:: Example
+
+    .. ipython::
+
+        In [1]: from rstoolbox.io import parse_rosetta_file
+           ...: from rstoolbox.analysis import label_sequence
+           ...: import pandas as pd
+           ...: pd.set_option('display.width', 1000)
+           ...: pd.set_option('display.max_columns', 500)
+           ...: df = parse_rosetta_file("../rstoolbox/tests/data/input_2seq.minisilent.gz",
+           ...:                         {'scores': ['score'], 'sequence': '*',
+           ...:                          'labels': ['MOTIF']})
+           ...: df = label_sequence(df, 'B', 'MOTIF')
+           ...: df.head()
+    """
+    from rstoolbox.components import DesignFrame, DesignSeries
+    colname = '{0}_{1}_seq'.format(label.upper(), seqID)
+
+    def get_all_decoy_labels(row, seqID, label):
+        try:
+            return list(np.array(row.get_label(label.upper(), seqID).to_list()) - 1)
+        except KeyError:
+            return []
+
+    if isinstance(df, DesignFrame):
+        if complete:
+            complete = set().union(*df.apply(get_all_decoy_labels, axis=1, args=(seqID, label)))
+
+        df2 = df.apply(lambda row: label_sequence(row, seqID, label, complete), axis=1, result_type='expand')
+        return df2
+    elif isinstance(df, DesignSeries):
+        try:
+            sele = list(np.array(df.get_label(label.upper(), seqID).to_list()) - 1)  # Correct str count
+            seq = df.get_sequence(seqID)
+            if isinstance(complete, set):
+                gaps = complete.difference(set(sele))
+                seq = [s if i not in gaps else '-' for i, s in enumerate(list(seq))]
+                sele = sorted(list(complete))
+            return df.append(pd.Series(''.join(operator.itemgetter(*sele)(list(seq))), [colname]))
+        except KeyError:
+            return df.append(pd.Series('', [colname]))
     else:
         raise NotImplementedError
 
