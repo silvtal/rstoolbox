@@ -1,6 +1,19 @@
 RosettaSilentToolbox
 ====================
 
+This repo fixes a very small bug trat prevented `plot_96wells` from working. Also, if you're using the original tutorials, remove the `set_ticks` line too
+
+```
+np.random.seed(0)
+df = pd.DataFrame(np.random.randn(8, 12))
+fig, ax = plot_96wells(cdata = df, sdata = -df, bdata = df<0)
+plt.subplots_adjust(left=0.1, right=0.8, top=0.9, bottom=0.1)
+# set_ticks(range(8))
+
+plt.show()
+plt.close()
+```
+
 .. image:: https://travis-ci.org/jaumebonet/RosettaSilentToolbox.svg?branch=master
     :target: https://travis-ci.org/jaumebonet/RosettaSilentToolbox
     :alt: Build Status
