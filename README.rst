@@ -14,6 +14,15 @@ plt.show()
 plt.close()
 ```
 
+Install
+
+```
+git clone https://github.com/silvtal/rstoolbox
+cd rstoolbox
+git archive --output=./rstoolbox_repo_archive.tar --format=tar HEAD
+python -m pip install rstoolbox_repo_archive.tar 
+```
+
 .. image:: https://travis-ci.org/jaumebonet/RosettaSilentToolbox.svg?branch=master
     :target: https://travis-ci.org/jaumebonet/RosettaSilentToolbox
     :alt: Build Status
